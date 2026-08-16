@@ -72,6 +72,23 @@ try {
         $answer=[System.Windows.MessageBox]::Show("Replace the installed LESS PROJECT release?","LESS PROJECT Update",[System.Windows.MessageBoxButton]::YesNo,[System.Windows.MessageBoxImage]::Question)
         if($answer -ne [System.Windows.MessageBoxResult]::Yes){ return }
     }
+
+    # Close the old application before replacing its EXE. This keeps the stable
+    # Release path current, so later launches cannot accidentally reopen an older build.
+    $runningApps=@(Get-Process -Name "LessProject_FiveM_Optimizer" -ErrorAction SilentlyContinue)
+    if($runningApps.Count -gt 0){
+        Write-Host "Closing the previous LESS PROJECT release..." -ForegroundColor Yellow
+        foreach($runningApp in $runningApps){
+            try {
+                [void]$runningApp.CloseMainWindow()
+                if(-not $runningApp.WaitForExit(2500)){ Stop-Process -Id $runningApp.Id -Force -ErrorAction Stop }
+            } catch {
+                # If this PowerShell session cannot stop an elevated copy, the
+                # lock-safe side-by-side fallback below will still install the update.
+            }
+        }
+        Start-Sleep -Milliseconds 300
+    }
     New-Item -ItemType Directory -Path $appRoot -Force | Out-Null
 
     # A running EXE cannot be replaced on Windows. Install the update side-by-side

@@ -12,6 +12,5 @@ Important:
 - Provisioned bloatware removal is optional and cannot be restored automatically.
 - A restart may be required for BCD, GPU scheduling, TCP or service changes.
 
-GitHub installer usage after uploading the release files:
-  powershell -ExecutionPolicy Bypass -File Install-LessProject.ps1 -Repository owner/repository -Ref main
-For one-line install, host Install-LessProject.ps1 and run it with irm | iex after configuring the repository.
+GitHub one-line install:
+  irm https://raw.githubusercontent.com/poomwyee-netizen/less-project-/main/LessProject_FiveM_Optimizer/Install-LessProject.ps1 | iex

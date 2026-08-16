@@ -13,4 +13,4 @@ Important:
 - A restart may be required for BCD, GPU scheduling, TCP or service changes.
 
 GitHub one-line install (verified release):
-  irm https://raw.githubusercontent.com/poomwyee-netizen/less-project-/2b520b9/LessProject_FiveM_Optimizer/Install-LessProject.ps1 | iex
+  irm https://raw.githubusercontent.com/poomwyee-netizen/less-project-/32ab08f/LessProject_FiveM_Optimizer/Install-LessProject.ps1 | iex

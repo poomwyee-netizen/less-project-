@@ -12,5 +12,5 @@ Important:
 - Provisioned bloatware removal is optional and cannot be restored automatically.
 - A restart may be required for BCD, GPU scheduling, TCP or service changes.
 
-GitHub one-line install:
-  irm https://raw.githubusercontent.com/poomwyee-netizen/less-project-/main/LessProject_FiveM_Optimizer/Install-LessProject.ps1 | iex
+GitHub one-line install (verified release):
+  irm https://raw.githubusercontent.com/poomwyee-netizen/less-project-/580c363/LessProject_FiveM_Optimizer/Install-LessProject.ps1 | iex

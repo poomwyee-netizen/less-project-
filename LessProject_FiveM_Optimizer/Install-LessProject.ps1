@@ -9,6 +9,8 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+$ProgressPreference = "SilentlyContinue"
+try { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 } catch {}
 Add-Type -AssemblyName PresentationFramework -ErrorAction SilentlyContinue
 $appRoot = Join-Path $env:LOCALAPPDATA "LessProject"
 $installRoot = Join-Path $appRoot "Release"
@@ -41,16 +43,33 @@ function Get-LessProjectSideBySideRoot {
     Join-Path $appRoot ("Release-" + [guid]::NewGuid().ToString("N"))
 }
 
+function Save-LessProjectReleaseFile {
+    param([string]$FileName,[string]$Destination)
+    $lastError=$null
+    for($attempt=1;$attempt -le 4;$attempt++){
+        try {
+            Write-Host "Downloading $FileName (attempt $attempt/4)..." -ForegroundColor DarkCyan
+            Invoke-WebRequest -Uri "$rawRoot/$FileName" -OutFile $Destination -UseBasicParsing -TimeoutSec 120 -ErrorAction Stop
+            if(-not (Test-Path -LiteralPath $Destination -PathType Leaf) -or (Get-Item -LiteralPath $Destination).Length -le 0){
+                throw "Downloaded file is empty."
+            }
+            return
+        } catch {
+            $lastError=$_.Exception
+            if($attempt -lt 4){ Start-Sleep -Seconds $attempt }
+        }
+    }
+    throw "Download failed for $FileName after 4 attempts: $($lastError.Message)"
+}
+
 try {
     if($Repository -eq "OWNER/REPOSITORY"){ throw "Configure the GitHub repository first, for example -Repository owner/repository." }
     New-Item -ItemType Directory -Path $tempRoot -Force | Out-Null
     Write-Host "Downloading LESS PROJECT release..." -ForegroundColor Cyan
 
-    foreach($file in $files){
-        Invoke-WebRequest -Uri "$rawRoot/$file" -OutFile (Join-Path $tempRoot $file) -UseBasicParsing
-    }
+    foreach($file in $files){ Save-LessProjectReleaseFile $file (Join-Path $tempRoot $file) }
     $manifestPath = Join-Path $tempRoot "SHA256SUMS.txt"
-    Invoke-WebRequest -Uri "$rawRoot/SHA256SUMS.txt" -OutFile $manifestPath -UseBasicParsing
+    Save-LessProjectReleaseFile "SHA256SUMS.txt" $manifestPath
 
     $manifest = @{}
     foreach($line in Get-Content -LiteralPath $manifestPath){

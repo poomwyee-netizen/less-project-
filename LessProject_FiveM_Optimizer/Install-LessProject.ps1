@@ -23,6 +23,24 @@ $files = @(
     "Start-LessProject.cmd"
 )
 
+function Test-LessProjectFileLocked {
+    param([string]$Path)
+    if(-not (Test-Path -LiteralPath $Path -PathType Leaf)){ return $false }
+    $stream=$null
+    try {
+        $stream=[IO.File]::Open($Path,[IO.FileMode]::Open,[IO.FileAccess]::ReadWrite,[IO.FileShare]::None)
+        return $false
+    } catch {
+        return $true
+    } finally {
+        if($stream){ $stream.Dispose() }
+    }
+}
+
+function Get-LessProjectSideBySideRoot {
+    Join-Path $appRoot ("Release-" + [guid]::NewGuid().ToString("N"))
+}
+
 try {
     if($Repository -eq "OWNER/REPOSITORY"){ throw "Configure the GitHub repository first, for example -Repository owner/repository." }
     New-Item -ItemType Directory -Path $tempRoot -Force | Out-Null
@@ -55,9 +73,28 @@ try {
         if($answer -ne [System.Windows.MessageBoxResult]::Yes){ return }
     }
     New-Item -ItemType Directory -Path $appRoot -Force | Out-Null
-    if(Test-Path -LiteralPath $installRoot){ Remove-Item -LiteralPath $installRoot -Recurse -Force }
-    Move-Item -LiteralPath $newApp -Destination $installRoot -Force
-    $exe = Join-Path $installRoot "LessProject_FiveM_Optimizer.exe"
+
+    # A running EXE cannot be replaced on Windows. Install the update side-by-side
+    # instead of failing with "Access is denied", then launch the new copy.
+    $targetRoot=$installRoot
+    $existingExe=Join-Path $installRoot "LessProject_FiveM_Optimizer.exe"
+    if(Test-LessProjectFileLocked $existingExe){
+        $targetRoot=Get-LessProjectSideBySideRoot
+        Write-Host "Existing release is still running; installing the update alongside it..." -ForegroundColor Yellow
+    } else {
+        try {
+            if(Test-Path -LiteralPath $installRoot){ Remove-Item -LiteralPath $installRoot -Recurse -Force -ErrorAction Stop }
+            Move-Item -LiteralPath $newApp -Destination $targetRoot -Force -ErrorAction Stop
+        } catch {
+            # Covers a race where the old process starts after the lock probe.
+            if(-not (Test-Path -LiteralPath $newApp)){ throw }
+            $targetRoot=Get-LessProjectSideBySideRoot
+            Write-Host "The previous release is in use; installing the update alongside it..." -ForegroundColor Yellow
+        }
+    }
+    if(Test-Path -LiteralPath $newApp){ Move-Item -LiteralPath $newApp -Destination $targetRoot -Force -ErrorAction Stop }
+    $exe = Join-Path $targetRoot "LessProject_FiveM_Optimizer.exe"
+    try { Set-Content -LiteralPath (Join-Path $appRoot "CurrentRelease.txt") -Value $targetRoot -Encoding UTF8 } catch {}
     Write-Host "Installed and verified LESS PROJECT." -ForegroundColor Green
     Start-Process -FilePath $exe -Verb RunAs | Out-Null
 } catch {

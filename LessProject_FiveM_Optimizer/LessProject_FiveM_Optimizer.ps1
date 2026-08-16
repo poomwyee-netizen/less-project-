@@ -2,7 +2,13 @@
 # Release loader: the application payload is compressed and stored beside this file.
 $ErrorActionPreference = "Stop"
 $entryPath = $PSCommandPath
-$entryRoot = if($PSScriptRoot){$PSScriptRoot}else{Split-Path -Parent $entryPath}
+$entryRoot = if($PSScriptRoot){
+    $PSScriptRoot
+} elseif($entryPath){
+    Split-Path -Parent $entryPath
+} else {
+    [IO.Path]::GetTempPath()
+}
 
 $admin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 if(-not $admin){

@@ -3,7 +3,7 @@ param(
     [ValidatePattern('^[^/\\ ]+/[^/\\ ]+$')]
     [string]$Repository = "poomwyee-netizen/less-project-",
     [string]$Ref = "main",
-    [string]$AssetPath = "release/LessProject_FiveM_Optimizer_Release.zip",
+    [string]$ProjectPath = "LessProject_FiveM_Optimizer",
     [switch]$Force
 )
 
@@ -12,30 +12,42 @@ Add-Type -AssemblyName PresentationFramework -ErrorAction SilentlyContinue
 $appRoot = Join-Path $env:LOCALAPPDATA "LessProject"
 $installRoot = Join-Path $appRoot "Release"
 $tempRoot = Join-Path ([IO.Path]::GetTempPath()) ("LessProject_" + [guid]::NewGuid().ToString("N"))
-$zipName = Split-Path $AssetPath -Leaf
-$zipPath = Join-Path $tempRoot $zipName
-$hashPath = "$zipPath.sha256"
-$rawRoot = "https://raw.githubusercontent.com/$Repository/$Ref"
+$rawRoot = "https://raw.githubusercontent.com/$Repository/$Ref/$ProjectPath"
+$files = @(
+    "Install-LessProject.ps1",
+    "LessProject_FiveM_Optimizer.exe",
+    "LessProject_FiveM_Optimizer.payload",
+    "LessProject_FiveM_Optimizer.ps1",
+    "README.txt",
+    "Start-LessProject.cmd"
+)
 
 try {
     if($Repository -eq "OWNER/REPOSITORY"){ throw "Configure the GitHub repository first, for example -Repository owner/repository." }
     New-Item -ItemType Directory -Path $tempRoot -Force | Out-Null
     Write-Host "Downloading LESS PROJECT release..." -ForegroundColor Cyan
-    Invoke-WebRequest -Uri "$rawRoot/$AssetPath" -OutFile $zipPath -UseBasicParsing
-    Invoke-WebRequest -Uri "$rawRoot/$AssetPath.sha256" -OutFile $hashPath -UseBasicParsing
 
-    $expected = ((Get-Content -LiteralPath $hashPath -Raw).Trim() -split '\s+')[0].ToUpperInvariant()
-    $actual = (Get-FileHash -LiteralPath $zipPath -Algorithm SHA256).Hash.ToUpperInvariant()
-    if($expected -ne $actual){ throw "SHA256 verification failed. Expected $expected, got $actual." }
+    foreach($file in $files){
+        Invoke-WebRequest -Uri "$rawRoot/$file" -OutFile (Join-Path $tempRoot $file) -UseBasicParsing
+    }
+    $manifestPath = Join-Path $tempRoot "SHA256SUMS.txt"
+    Invoke-WebRequest -Uri "$rawRoot/SHA256SUMS.txt" -OutFile $manifestPath -UseBasicParsing
 
-    $extractRoot = Join-Path $tempRoot "Extracted"
-    Expand-Archive -LiteralPath $zipPath -DestinationPath $extractRoot -Force
+    $manifest = @{}
+    foreach($line in Get-Content -LiteralPath $manifestPath){
+        if($line -match '^\s*([0-9A-Fa-f]{64})\s+(.+?)\s*$'){
+            $manifest[$Matches[2]] = $Matches[1].ToUpperInvariant()
+        }
+    }
+    foreach($file in $files){
+        if(-not $manifest.ContainsKey($file)){ throw "SHA256 manifest is missing $file." }
+        $actual = (Get-FileHash -LiteralPath (Join-Path $tempRoot $file) -Algorithm SHA256).Hash.ToUpperInvariant()
+        if($manifest[$file] -ne $actual){ throw "SHA256 verification failed for $file." }
+    }
+
     $newApp = Join-Path $tempRoot "LessProjectApp"
     New-Item -ItemType Directory -Path $newApp -Force | Out-Null
-    Copy-Item -LiteralPath (Join-Path $extractRoot "LessProject_FiveM_Optimizer.exe") -Destination $newApp -Force
-    Copy-Item -LiteralPath (Join-Path $extractRoot "LessProject_FiveM_Optimizer.payload") -Destination $newApp -Force
-    Copy-Item -LiteralPath (Join-Path $extractRoot "LessProject_FiveM_Optimizer.ps1") -Destination $newApp -Force
-    Copy-Item -LiteralPath (Join-Path $extractRoot "README.txt") -Destination $newApp -Force
+    foreach($file in $files){ Copy-Item -LiteralPath (Join-Path $tempRoot $file) -Destination (Join-Path $newApp $file) -Force }
 
     if((Test-Path -LiteralPath $installRoot) -and -not $Force){
         $answer=[System.Windows.MessageBox]::Show("Replace the installed LESS PROJECT release?","LESS PROJECT Update",[System.Windows.MessageBoxButton]::YesNo,[System.Windows.MessageBoxImage]::Question)

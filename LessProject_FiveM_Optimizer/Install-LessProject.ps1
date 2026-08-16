@@ -3,7 +3,7 @@ param(
     [ValidatePattern('^[^/\\ ]+/[^/\\ ]+$')]
     [string]$Repository = "poomwyee-netizen/less-project-",
     # Pin the verified release so raw GitHub cache cannot mix old and new files.
-    [string]$Ref = "713e19a",
+    [string]$Ref = "fe9cddd",
     [string]$ProjectPath = "LessProject_FiveM_Optimizer",
     [switch]$Force
 )

@@ -2,8 +2,9 @@
 param(
     [ValidatePattern('^[^/\\ ]+/[^/\\ ]+$')]
     [string]$Repository = "poomwyee-netizen/less-project-",
-    # Pin the verified release so raw GitHub cache cannot mix old and new files.
-    [string]$Ref = "4dde996",
+    # Use the default branch so the single release package stays in sync with
+    # the installer when a new repository is created or a release is updated.
+    [string]$Ref = "main",
     [string]$ProjectPath = "LessProject_FiveM_Optimizer",
     [switch]$Force
 )

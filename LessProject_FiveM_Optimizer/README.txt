@@ -13,9 +13,9 @@ Important:
 - A restart may be required for BCD, GPU scheduling, TCP or service changes.
 
 GitHub one-line install (verified release):
-  irm https://raw.githubusercontent.com/poomwyee-netizen/less-project-/b9adb75/LessProject_FiveM_Optimizer/Install-LessProject.ps1 | iex
+  irm https://raw.githubusercontent.com/poomwyee-netizen/less-project-/05f822b/LessProject_FiveM_Optimizer/Install-LessProject.ps1 | iex
 
 If raw.githubusercontent.com returns HTTP 429, use the GitHub API fallback below.
 It uses one API request to fetch the installer and the installer automatically
 falls back to the API for release files when the raw host is rate-limited:
-  $u='https://api.github.com/repos/poomwyee-netizen/less-project-/contents/LessProject_FiveM_Optimizer/Install-LessProject.ps1?ref=b9adb75'; $j=Invoke-RestMethod -Uri $u -Headers @{'User-Agent'='LESS-PROJECT-Installer';'Accept'='application/vnd.github+json'}; iex ([Text.Encoding]::UTF8.GetString([Convert]::FromBase64String(($j.content -replace '\s',''))))
+  $u='https://api.github.com/repos/poomwyee-netizen/less-project-/contents/LessProject_FiveM_Optimizer/Install-LessProject.ps1?ref=05f822b'; $j=Invoke-RestMethod -Uri $u -Headers @{'User-Agent'='LESS-PROJECT-Installer';'Accept'='application/vnd.github+json'}; iex ([Text.Encoding]::UTF8.GetString([Convert]::FromBase64String(($j.content -replace '\s',''))))

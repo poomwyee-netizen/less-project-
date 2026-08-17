@@ -67,6 +67,11 @@ function Save-LessProjectReleaseFile {
             } catch {
                 $lastError=$_.Exception
                 if(Test-Path -LiteralPath $Destination){ Remove-Item -LiteralPath $Destination -Force -ErrorAction SilentlyContinue }
+                $status=0
+                try { if($_.Exception.Response){ $status=[int]$_.Exception.Response.StatusCode } } catch {}
+                # A rate-limited or forbidden endpoint will not recover by
+                # retrying the same host; move straight to the API fallback.
+                if($status -in @(403,429)){ break }
                 if($attempt -lt 2){ Start-Sleep -Seconds $attempt }
             }
         }

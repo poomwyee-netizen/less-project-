@@ -4,6 +4,7 @@ Run Start-LessProject.cmd or LessProject_FiveM_Optimizer.exe as Administrator.
 The EXE contains the compressed payload; the separate payload file is kept only for the PowerShell fallback launcher.
 The source comments are removed for distribution.
 This is obfuscation, not encryption; do not use it to hide unsafe changes.
+The installer downloads the single release ZIP first, so normal installs do not make one request per file.
 
 Important:
 - Create a System Restore Point before applying aggressive settings.

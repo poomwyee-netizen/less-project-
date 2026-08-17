@@ -21,6 +21,7 @@ $apiHeaders = @{
     "User-Agent" = "LESS-PROJECT-Installer"
     "Accept" = "application/vnd.github.raw+json"
 }
+$archiveName = "LessProject_FiveM_Optimizer_Release.zip"
 $files = @(
     "Install-LessProject.ps1",
     "LessProject_FiveM_Optimizer.exe",
@@ -79,12 +80,60 @@ function Save-LessProjectReleaseFile {
     throw "Download failed for $FileName from GitHub raw and API endpoints: $($lastError.Message)"
 }
 
+function Get-LessProjectArchiveRoot {
+    param([string]$ExtractRoot)
+    if(Test-Path -LiteralPath (Join-Path $ExtractRoot "SHA256SUMS.txt") -PathType Leaf){ return $ExtractRoot }
+    $nested = Get-ChildItem -LiteralPath $ExtractRoot -Directory -ErrorAction SilentlyContinue |
+        Where-Object { Test-Path -LiteralPath (Join-Path $_.FullName "SHA256SUMS.txt") -PathType Leaf } |
+        Select-Object -First 1
+    if($nested){ return $nested.FullName }
+    return $null
+}
+
+function Try-DownloadLessProjectArchive {
+    param([string]$DestinationRoot)
+    $archivePath = Join-Path $tempRoot $archiveName
+    $extractRoot = Join-Path $tempRoot "ArchiveExtract"
+    $sources = @(
+        [pscustomobject]@{ Name = "GitHub raw"; Uri = "$rawRoot/$archiveName"; Headers = @{ "User-Agent" = "LESS-PROJECT-Installer" } },
+        [pscustomobject]@{ Name = "GitHub API"; Uri = "$apiRoot/$archiveName`?ref=$Ref"; Headers = $apiHeaders }
+    )
+    foreach($source in $sources){
+        try {
+            Write-Host "Downloading release package via $($source.Name)..." -ForegroundColor DarkCyan
+            Invoke-WebRequest -Uri $source.Uri -Headers $source.Headers -OutFile $archivePath -UseBasicParsing -TimeoutSec 120 -ErrorAction Stop
+            if(-not (Test-Path -LiteralPath $archivePath -PathType Leaf) -or (Get-Item -LiteralPath $archivePath).Length -le 0){ throw "Downloaded package is empty." }
+            if(Test-Path -LiteralPath $extractRoot){ Remove-Item -LiteralPath $extractRoot -Recurse -Force -ErrorAction SilentlyContinue }
+            Expand-Archive -LiteralPath $archivePath -DestinationPath $extractRoot -Force
+            $sourceRoot = Get-LessProjectArchiveRoot $extractRoot
+            if(-not $sourceRoot){ throw "The release package does not contain SHA256SUMS.txt." }
+            foreach($file in $files){
+                $sourceFile = Join-Path $sourceRoot $file
+                if(-not (Test-Path -LiteralPath $sourceFile -PathType Leaf)){ throw "The release package is missing $file." }
+                Copy-Item -LiteralPath $sourceFile -Destination (Join-Path $DestinationRoot $file) -Force
+            }
+            return $true
+        } catch {
+            $status=0
+            try { if($_.Exception.Response){ $status=[int]$_.Exception.Response.StatusCode } } catch {}
+            if($status -in @(403,429)){ continue }
+        }
+    }
+    return $false
+}
+
 try {
     if($Repository -eq "OWNER/REPOSITORY"){ throw "Configure the GitHub repository first, for example -Repository owner/repository." }
     New-Item -ItemType Directory -Path $tempRoot -Force | Out-Null
     Write-Host "Downloading LESS PROJECT release..." -ForegroundColor Cyan
 
-    foreach($file in $files){ Save-LessProjectReleaseFile $file (Join-Path $tempRoot $file) }
+    $archiveReady = Try-DownloadLessProjectArchive $tempRoot
+    if($archiveReady){
+        Write-Host "Release package downloaded; skipping individual file requests." -ForegroundColor Green
+    } else {
+        Write-Host "Release package unavailable; downloading individual files..." -ForegroundColor Yellow
+        foreach($file in $files){ Save-LessProjectReleaseFile $file (Join-Path $tempRoot $file) }
+    }
     $manifestPath = Join-Path $tempRoot "SHA256SUMS.txt"
     Save-LessProjectReleaseFile "SHA256SUMS.txt" $manifestPath
 

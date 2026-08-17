@@ -16,6 +16,11 @@ $appRoot = Join-Path $env:LOCALAPPDATA "LessProject"
 $installRoot = Join-Path $appRoot "Release"
 $tempRoot = Join-Path ([IO.Path]::GetTempPath()) ("LessProject_" + [guid]::NewGuid().ToString("N"))
 $rawRoot = "https://raw.githubusercontent.com/$Repository/$Ref/$ProjectPath"
+$apiRoot = "https://api.github.com/repos/$Repository/contents/$ProjectPath"
+$apiHeaders = @{
+    "User-Agent" = "LESS-PROJECT-Installer"
+    "Accept" = "application/vnd.github.raw+json"
+}
 $files = @(
     "Install-LessProject.ps1",
     "LessProject_FiveM_Optimizer.exe",
@@ -46,20 +51,27 @@ function Get-LessProjectSideBySideRoot {
 function Save-LessProjectReleaseFile {
     param([string]$FileName,[string]$Destination)
     $lastError=$null
-    for($attempt=1;$attempt -le 4;$attempt++){
-        try {
-            Write-Host "Downloading $FileName (attempt $attempt/4)..." -ForegroundColor DarkCyan
-            Invoke-WebRequest -Uri "$rawRoot/$FileName" -OutFile $Destination -UseBasicParsing -TimeoutSec 120 -ErrorAction Stop
-            if(-not (Test-Path -LiteralPath $Destination -PathType Leaf) -or (Get-Item -LiteralPath $Destination).Length -le 0){
-                throw "Downloaded file is empty."
+    $sources = @(
+        [pscustomobject]@{ Name = "GitHub raw"; Uri = "$rawRoot/$FileName"; Headers = @{ "User-Agent" = "LESS-PROJECT-Installer" } },
+        [pscustomobject]@{ Name = "GitHub API"; Uri = "$apiRoot/$FileName`?ref=$Ref"; Headers = $apiHeaders }
+    )
+    foreach($source in $sources){
+        for($attempt=1;$attempt -le 2;$attempt++){
+            try {
+                Write-Host "Downloading $FileName via $($source.Name) (attempt $attempt/2)..." -ForegroundColor DarkCyan
+                Invoke-WebRequest -Uri $source.Uri -Headers $source.Headers -OutFile $Destination -UseBasicParsing -TimeoutSec 120 -ErrorAction Stop
+                if(-not (Test-Path -LiteralPath $Destination -PathType Leaf) -or (Get-Item -LiteralPath $Destination).Length -le 0){
+                    throw "Downloaded file is empty."
+                }
+                return
+            } catch {
+                $lastError=$_.Exception
+                if(Test-Path -LiteralPath $Destination){ Remove-Item -LiteralPath $Destination -Force -ErrorAction SilentlyContinue }
+                if($attempt -lt 2){ Start-Sleep -Seconds $attempt }
             }
-            return
-        } catch {
-            $lastError=$_.Exception
-            if($attempt -lt 4){ Start-Sleep -Seconds $attempt }
         }
     }
-    throw "Download failed for $FileName after 4 attempts: $($lastError.Message)"
+    throw "Download failed for $FileName from GitHub raw and API endpoints: $($lastError.Message)"
 }
 
 try {

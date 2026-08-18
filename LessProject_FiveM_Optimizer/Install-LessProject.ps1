@@ -113,6 +113,7 @@ function Try-DownloadLessProjectArchive {
                 if(-not (Test-Path -LiteralPath $sourceFile -PathType Leaf)){ throw "The release package is missing $file." }
                 Copy-Item -LiteralPath $sourceFile -Destination (Join-Path $DestinationRoot $file) -Force
             }
+            Copy-Item -LiteralPath (Join-Path $sourceRoot "SHA256SUMS.txt") -Destination (Join-Path $DestinationRoot "SHA256SUMS.txt") -Force
             return $true
         } catch {
             $status=0
@@ -136,7 +137,11 @@ try {
         foreach($file in $files){ Save-LessProjectReleaseFile $file (Join-Path $tempRoot $file) }
     }
     $manifestPath = Join-Path $tempRoot "SHA256SUMS.txt"
-    Save-LessProjectReleaseFile "SHA256SUMS.txt" $manifestPath
+    if(-not $archiveReady){
+        Save-LessProjectReleaseFile "SHA256SUMS.txt" $manifestPath
+    } elseif(-not (Test-Path -LiteralPath $manifestPath -PathType Leaf)){
+        throw "The release package is missing SHA256SUMS.txt."
+    }
 
     $manifest = @{}
     foreach($line in Get-Content -LiteralPath $manifestPath){

@@ -18,6 +18,7 @@ $installRoot = Join-Path $appRoot "Release"
 $tempRoot = Join-Path ([IO.Path]::GetTempPath()) ("LessProject_" + [guid]::NewGuid().ToString("N"))
 $rawRoot = "https://raw.githubusercontent.com/$Repository/$Ref/$ProjectPath"
 $apiRoot = "https://api.github.com/repos/$Repository/contents/$ProjectPath"
+$cacheBust = [DateTime]::UtcNow.Ticks
 $apiHeaders = @{
     "User-Agent" = "LESS-PROJECT-Installer"
     "Accept" = "application/vnd.github.raw+json"
@@ -54,7 +55,7 @@ function Save-LessProjectReleaseFile {
     param([string]$FileName,[string]$Destination)
     $lastError=$null
     $sources = @(
-        [pscustomobject]@{ Name = "GitHub raw"; Uri = "$rawRoot/$FileName"; Headers = @{ "User-Agent" = "LESS-PROJECT-Installer" } },
+        [pscustomobject]@{ Name = "GitHub raw"; Uri = "$rawRoot/$FileName?lp=$cacheBust"; Headers = @{ "User-Agent" = "LESS-PROJECT-Installer" } },
         [pscustomobject]@{ Name = "GitHub API"; Uri = "$apiRoot/$FileName`?ref=$Ref"; Headers = $apiHeaders }
     )
     foreach($source in $sources){
@@ -96,7 +97,7 @@ function Try-DownloadLessProjectArchive {
     $archivePath = Join-Path $tempRoot $archiveName
     $extractRoot = Join-Path $tempRoot "ArchiveExtract"
     $sources = @(
-        [pscustomobject]@{ Name = "GitHub raw"; Uri = "$rawRoot/$archiveName"; Headers = @{ "User-Agent" = "LESS-PROJECT-Installer" } },
+        [pscustomobject]@{ Name = "GitHub raw"; Uri = "$rawRoot/$archiveName?lp=$cacheBust"; Headers = @{ "User-Agent" = "LESS-PROJECT-Installer" } },
         [pscustomobject]@{ Name = "GitHub API"; Uri = "$apiRoot/$archiveName`?ref=$Ref"; Headers = $apiHeaders }
     )
     foreach($source in $sources){

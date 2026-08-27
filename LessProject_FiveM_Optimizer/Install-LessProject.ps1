@@ -56,8 +56,8 @@ function Save-LessProjectReleaseFile {
     param([string]$FileName,[string]$Destination)
     $lastError=$null
     $sources = @(
-        [pscustomobject]@{ Name = "GitHub raw"; Uri = "$rawRoot/$FileName?lp=$cacheBust"; Headers = @{ "User-Agent" = "LESS-PROJECT-Installer" } },
         [pscustomobject]@{ Name = "jsDelivr CDN"; Uri = "$cdnRoot/$FileName?lp=$cacheBust"; Headers = @{ "User-Agent" = "LESS-PROJECT-Installer" } },
+        [pscustomobject]@{ Name = "GitHub raw"; Uri = "$rawRoot/$FileName?lp=$cacheBust"; Headers = @{ "User-Agent" = "LESS-PROJECT-Installer" } },
         [pscustomobject]@{ Name = "GitHub API"; Uri = "$apiRoot/$FileName`?ref=$Ref"; Headers = $apiHeaders }
     )
     foreach($source in $sources){
@@ -99,8 +99,8 @@ function Try-DownloadLessProjectArchive {
     $archivePath = Join-Path $tempRoot $archiveName
     $extractRoot = Join-Path $tempRoot "ArchiveExtract"
     $sources = @(
-        [pscustomobject]@{ Name = "GitHub raw"; Uri = "$rawRoot/$archiveName?lp=$cacheBust"; Headers = @{ "User-Agent" = "LESS-PROJECT-Installer" } },
         [pscustomobject]@{ Name = "jsDelivr CDN"; Uri = "$cdnRoot/$archiveName?lp=$cacheBust"; Headers = @{ "User-Agent" = "LESS-PROJECT-Installer" } },
+        [pscustomobject]@{ Name = "GitHub raw"; Uri = "$rawRoot/$archiveName?lp=$cacheBust"; Headers = @{ "User-Agent" = "LESS-PROJECT-Installer" } },
         [pscustomobject]@{ Name = "GitHub API"; Uri = "$apiRoot/$archiveName`?ref=$Ref"; Headers = $apiHeaders }
     )
     foreach($source in $sources){

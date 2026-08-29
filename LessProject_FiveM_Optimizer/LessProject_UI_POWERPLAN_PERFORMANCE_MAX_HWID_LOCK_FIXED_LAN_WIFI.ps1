@@ -170,15 +170,11 @@ $Global:StartupDisableTargets = @("Steam","Discord","Epic","Battle.net","Origin"
 # --- SYNC PROJECT (customized): only Network + Input Lag tweaks are enabled by default. ---
 # --- GPU tweaks are auto-detected. If only one vendor is found, only that vendor's category/tweaks are shown/enabled. ---
 # --- If BOTH an NVIDIA and an AMD GPU are detected (hybrid/multi-GPU systems), both categories stay visible so the user can pick. ---
-$Global:DetectedGpuVendor = $null
-try {
-    $__gpuNames = @(Get-CimInstance -ClassName Win32_VideoController -EA SilentlyContinue | Select-Object -ExpandProperty Name)
-    $__hasNvidia = [bool]($__gpuNames -match "NVIDIA")
-    $__hasAmd = [bool]($__gpuNames -match "AMD|ATI|Radeon")
-    if ($__hasNvidia -and $__hasAmd) { $Global:DetectedGpuVendor = "BOTH" }
-    elseif ($__hasNvidia) { $Global:DetectedGpuVendor = "NVIDIA" }
-    elseif ($__hasAmd) { $Global:DetectedGpuVendor = "AMD" }
-} catch {}
+# Do not perform a synchronous WMI display query during process startup.  WMI
+# can block for several seconds when the management service or a GPU driver is
+# busy.  Keep both vendor groups visible until the normal SystemInfo job has
+# populated the hardware panel; each GPU tweak performs its own safety check.
+$Global:DetectedGpuVendor = "BOTH"
 $Global:NvidiaOnlyKeys = @("GPU_NvidiaPowerMode","GPU_NvidiaTelemetryOff","GPU_NvidiaMSIMode","GPU_NvidiaOverlayOff")
 $Global:AmdOnlyKeys    = @("GPU_AmdUlps","GPU_AmdEventsUtil","GPU_AmdMSIMode","GPU_AmdCrashDefenderOff")
 if (-not $Global:SavedTweakToggles) {
@@ -1232,6 +1228,13 @@ function Start-LessProjectKeyAuthValidation {
 function Get-LessProjectHardwareId {
     [OutputType([string])]
     param()
+    $cachePath = Join-Path $Global:StateDir "hwid.txt"
+    try {
+        if(Test-Path -LiteralPath $cachePath -PathType Leaf){
+            $cached = ([IO.File]::ReadAllText($cachePath)).Trim()
+            if($cached -match '^LP-[A-F0-9]{40}$'){ return $cached }
+        }
+    } catch {}
     $parts = New-Object System.Collections.Generic.List[string]
     $sources = @(
         @{ Class = "Win32_ComputerSystemProduct"; Properties = @("UUID") },
@@ -1241,9 +1244,7 @@ function Get-LessProjectHardwareId {
     )
     foreach($source in $sources){
         $items = $null
-        try { $items = @(Get-CimInstance -ClassName $source.Class -ErrorAction Stop) } catch {
-            try { $items = @(Get-WmiObject -Class $source.Class -ErrorAction Stop) } catch { $items = @() }
-        }
+        try { $items = @(Get-CimInstance -ClassName $source.Class -OperationTimeoutSec 2 -ErrorAction Stop) } catch { $items = @() }
         foreach($item in $items){
             foreach($propertyName in $source.Properties){
                 try {
@@ -1269,7 +1270,12 @@ function Get-LessProjectHardwareId {
         $hash = $sha.ComputeHash($bytes)
         $hex = New-Object System.Text.StringBuilder
         foreach($byte in $hash){ [void]$hex.Append($byte.ToString("X2")) }
-        return "LP-" + $hex.ToString().Substring(0,40)
+                $hardwareId = "LP-" + $hex.ToString().Substring(0,40)
+                try {
+                    if(-not (Test-Path -LiteralPath $Global:StateDir)){ New-Item -Path $Global:StateDir -ItemType Directory -Force -ErrorAction SilentlyContinue | Out-Null }
+                    [IO.File]::WriteAllText($cachePath,$hardwareId,(New-Object Text.UTF8Encoding($false)))
+                } catch {}
+                return $hardwareId
     } catch {
         return "LP-UNAVAILABLE"
     } finally {
@@ -1468,7 +1474,7 @@ function Show-LessProjectHwidGate {
                 [System.Windows.Input.Keyboard]::Focus($hwidKeyBox) | Out-Null
             } catch {}
         }.GetNewClosure())
-        $hwidClose.Add_Click({ $Global:LessProjectHwidCancelled = $true; try { $hwidAuthTimer.Stop() } catch {}; Stop-LessProjectKeyAuthValidation; $hwidWindow.Close() }.GetNewClosure())
+        $hwidClose.Add_Click({ $Global:LessProjectHwidCancelled = $true; try { $hwidAuthTimer.Stop() } catch {}; try { Stop-LessProjectKeyAuthValidation } catch {}; try { $hwidWindow.Close() } catch {} }.GetNewClosure())
         $hwidMinimize.Add_Click({ $hwidWindow.WindowState = [System.Windows.WindowState]::Minimized }.GetNewClosure())
         $hwidWindow.Add_PreviewMouseLeftButtonDown({
             param($sender,$eventArgs)
@@ -1485,7 +1491,7 @@ function Show-LessProjectHwidGate {
                 try { $eventArgs.Handled = $true; $hwidWindow.DragMove() } catch {}
             }
         }.GetNewClosure())
-        $hwidWindow.Add_Closed({ try { $hwidAuthTimer.Stop() } catch {}; Stop-LessProjectKeyAuthValidation }.GetNewClosure())
+        $hwidWindow.Add_Closed({ try { $hwidAuthTimer.Stop() } catch {}; try { Stop-LessProjectKeyAuthValidation } catch {} }.GetNewClosure())
         $hwidWindow.Add_ContentRendered({
             try {
                 [void]$hwidKeyBox.Focus()
@@ -1502,6 +1508,17 @@ function Show-LessProjectHwidGate {
 }
 
 $Global:LessProjectHardwareId = Get-LessProjectHardwareId
+# The EXE loader can show a tiny startup window while this large PowerShell
+# payload is being parsed and WMI/HWID discovery completes.  This is a no-op
+# when the source is run directly and keeps the first visible UI responsive.
+try {
+    $startupEventName = [string]$env:LESS_PROJECT_PRELOADER_EVENT
+    if(-not [string]::IsNullOrWhiteSpace($startupEventName)) {
+        $startupEvent = [System.Threading.EventWaitHandle]::OpenExisting($startupEventName)
+        [void]$startupEvent.Set()
+        $startupEvent.Dispose()
+    }
+} catch {}
 if(-not (Show-LessProjectHwidGate -HardwareId $Global:LessProjectHardwareId)){
     try { if($Global:SystemInfoJob){ Stop-Job $Global:SystemInfoJob -ErrorAction SilentlyContinue; Remove-Job $Global:SystemInfoJob -Force -ErrorAction SilentlyContinue } } catch {}
     exit

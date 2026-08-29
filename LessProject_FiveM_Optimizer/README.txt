@@ -2,14 +2,8 @@
 
 Run Start-LessProject.cmd or LessProject_FiveM_Optimizer.exe as Administrator.
 The EXE contains the compressed payload; the separate payload file is kept only for the PowerShell fallback launcher.
-The full editable source is LessProject_UI_POWERPLAN_PERFORMANCE_MAX_HWID_LOCK_FIXED_LAN_WIFI.ps1.
 The source comments are removed for distribution.
 This is obfuscation, not encryption; do not use it to hide unsafe changes.
-
-License access:
-- The sign-in gate uses KeyAuth API 1.3 with license + hardware ID validation.
-- Application identifiers are public client values; no seller/API secret is stored in this file.
-- Create licenses in the KeyAuth dashboard for "Poomwyee's Application" before distributing them.
 
 Important:
 - Create a System Restore Point before applying aggressive settings.

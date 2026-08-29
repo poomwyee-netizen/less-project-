@@ -2109,7 +2109,7 @@ Add-ClickFX $BtnSplashClose
 # No DropShadowEffect is applied, so there is no outer glow around the control.
 try { $BtnSplashStart.Effect = $null } catch {}
 $BtnSplashStart.Add_PreviewMouseLeftButtonDown({ try { Play-LaunchUiSound } catch {} })
-$BtnRun.Add_PreviewMouseLeftButtonDown({ try { Play-ApplyStartSound } catch {} })
+if($BtnRun){ $BtnRun.Add_PreviewMouseLeftButtonDown({ try { Play-ApplyStartSound } catch {} }) }
 $BtnSplashStart.Add_KeyDown({
     if($args[1].Key -in @([System.Windows.Input.Key]::Enter,[System.Windows.Input.Key]::Space)){ try { Play-LaunchUiSound } catch {} }
 })

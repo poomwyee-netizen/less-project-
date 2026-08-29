@@ -115,7 +115,24 @@ function Get-LessProjectArchiveRoot {
 function Try-InstallEmbeddedRelease {
     param([string]$DestinationRoot)
     try {
-        if([string]::IsNullOrWhiteSpace($EmbeddedRuntimeZipBase64) -or [string]::IsNullOrWhiteSpace($Global:InstallerSourceText)){ return $false }
+        # When this installer is piped through `irm | iex`, PSCommandPath and
+        # MyInvocation.Command.Definition are empty.  The embedded bundle is
+        # still valid, so do not reject it merely because the installer cannot
+        # copy its own full source text into the installed folder.
+        if([string]::IsNullOrWhiteSpace($EmbeddedRuntimeZipBase64)){ return $false }
+        if([string]::IsNullOrWhiteSpace($Global:InstallerSourceText)){
+            $Global:InstallerSourceText = @'
+[CmdletBinding()]
+param(
+    [string]$Repository = "poomwyee-netizen/less-project-",
+    [string]$Ref = "main",
+    [switch]$Force
+)
+$uri = "https://cdn.jsdelivr.net/gh/$Repository@$Ref/LessProject_FiveM_Optimizer/Install-LessProject.ps1"
+$text = (Invoke-WebRequest -UseBasicParsing -Uri $uri -TimeoutSec 60).Content
+& ([scriptblock]::Create($text)) -Repository $Repository -Ref $Ref -Force:$Force
+'@
+        }
         $embeddedZip = Join-Path $tempRoot "EmbeddedRelease.zip"
         $embeddedExtract = Join-Path $tempRoot "EmbeddedExtract"
         [IO.File]::WriteAllBytes($embeddedZip,[Convert]::FromBase64String($EmbeddedRuntimeZipBase64))

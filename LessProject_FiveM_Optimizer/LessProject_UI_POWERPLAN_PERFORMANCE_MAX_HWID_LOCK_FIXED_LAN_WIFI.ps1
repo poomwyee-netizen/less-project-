@@ -1193,7 +1193,21 @@ function Start-LessProjectKeyAuthValidation {
         [Parameter(Mandatory=$true)][string]$LicenseKey,
         [Parameter(Mandatory=$true)][string]$HardwareId
     )
-    Stop-LessProjectKeyAuthValidation
+    # Do not call another script-scope function here: the compiled EXE invokes
+    # this callback from a later WPF event scope where name lookup is isolated.
+    # Clean up a previous request inline so a second click cannot inherit it.
+    try {
+        $oldPs = $Global:KeyAuthValidationPowerShell
+        $oldAsync = $Global:KeyAuthValidationAsync
+        if($oldPs -and $oldAsync -and -not $oldAsync.IsCompleted){ try { $oldPs.Stop() } catch {} }
+        if($oldPs){ try { $oldPs.Dispose() } catch {} }
+        $oldRunspace = $Global:KeyAuthValidationRunspace
+        if($oldRunspace){ try { $oldRunspace.Close() } catch {}; try { $oldRunspace.Dispose() } catch {} }
+    } catch {}
+    $Global:KeyAuthValidationPowerShell = $null
+    $Global:KeyAuthValidationRunspace = $null
+    $Global:KeyAuthValidationAsync = $null
+    $Global:KeyAuthValidationStartedAt = $null
     $config = $Global:KeyAuthConfig
     $runspace = [runspacefactory]::CreateRunspace()
     $runspace.ApartmentState = 'MTA'
@@ -1415,6 +1429,12 @@ function Show-LessProjectHwidGate {
         $hwidContinue = $hwidWindow.FindName("HwidContinueButton")
         $hwidClose = $hwidWindow.FindName("HwidClose")
         $hwidMinimize = $hwidWindow.FindName("HwidMinimize")
+        # Event callbacks can outlive the script scope used by PS2EXE. Capture
+        # the functions they need as scriptblocks instead of resolving names
+        # later from a scope that may no longer exist.
+        $startKeyAuthAction = (${function:Start-LessProjectKeyAuthValidation}).GetNewClosure()
+        $stopKeyAuthAction = (${function:Stop-LessProjectKeyAuthValidation}).GetNewClosure()
+        $hwidSoundAction = (${function:Play-HwidButtonSound}).GetNewClosure()
         if($hwidValueBox){ $hwidValueBox.Text = [string]$HardwareId }
         try {
             # Same compositor-side moving star treatment as the other UI screens,
@@ -1434,7 +1454,7 @@ function Show-LessProjectHwidGate {
                 if(-not $async.IsCompleted){
                     $started = $Global:KeyAuthValidationStartedAt
                     if($started -and (([DateTime]::UtcNow - $started).TotalSeconds -ge 25)){
-                        Stop-LessProjectKeyAuthValidation
+                        try { & $stopKeyAuthAction } catch {}
                         $hwidAuthTimer.Stop()
                         $hwidContinue.IsEnabled = $true
                         $hwidStatus.Text = "LOGIN FAILED — KEYAUTH REQUEST TIMED OUT"
@@ -1449,7 +1469,7 @@ function Show-LessProjectHwidGate {
                 } catch {
                     $result = @([pscustomobject]@{ Success=$false; Message=('KeyAuth worker failed: ' + $_.Exception.Message) })
                 }
-                Stop-LessProjectKeyAuthValidation
+                try { & $stopKeyAuthAction } catch {}
                 $hwidAuthTimer.Stop()
                 $hwidContinue.IsEnabled = $true
                 if($result.Count -gt 0 -and [bool]$result[0].Success){
@@ -1467,14 +1487,16 @@ function Show-LessProjectHwidGate {
                 }
             } catch {
                 try { $hwidAuthTimer.Stop() } catch {}
-                try { Stop-LessProjectKeyAuthValidation } catch {}
+                try { & $stopKeyAuthAction } catch {}
                 $hwidContinue.IsEnabled = $true
                 $hwidStatus.Text = "LOGIN FAILED — $($_.Exception.Message)"
                 $hwidStatus.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#FFB4B4")
             }
         }.GetNewClosure())
         $hwidContinue.Add_Click({
-            Play-HwidButtonSound -Kind "Login"
+            # Sound is decorative; never let a missing audio helper prevent the
+            # license request from starting in the compiled EXE.
+            try { & $hwidSoundAction -Kind "Login" } catch {}
             $enteredKey = ""
             try { $enteredKey = [string]$hwidKeyBox.Password } catch {}
             if([string]::IsNullOrWhiteSpace($enteredKey)){
@@ -1486,7 +1508,7 @@ function Show-LessProjectHwidGate {
             $hwidStatus.Text = "CHECKING LICENSE WITH KEYAUTH..."
             $hwidStatus.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#D8D8D8")
             try {
-                Start-LessProjectKeyAuthValidation -LicenseKey $enteredKey -HardwareId $HardwareId | Out-Null
+                & $startKeyAuthAction -LicenseKey $enteredKey -HardwareId $HardwareId | Out-Null
                 $hwidAuthTimer.Start()
             } catch {
                 $hwidContinue.IsEnabled = $true
@@ -1507,7 +1529,7 @@ function Show-LessProjectHwidGate {
                 [System.Windows.Input.Keyboard]::Focus($hwidKeyBox) | Out-Null
             } catch {}
         }.GetNewClosure())
-        $hwidClose.Add_Click({ $Global:LessProjectHwidCancelled = $true; try { $hwidAuthTimer.Stop() } catch {}; try { Stop-LessProjectKeyAuthValidation } catch {}; try { $hwidWindow.Close() } catch {} }.GetNewClosure())
+        $hwidClose.Add_Click({ $Global:LessProjectHwidCancelled = $true; try { $hwidAuthTimer.Stop() } catch {}; try { & $stopKeyAuthAction } catch {}; try { $hwidWindow.Close() } catch {} }.GetNewClosure())
         $hwidMinimize.Add_Click({ $hwidWindow.WindowState = [System.Windows.WindowState]::Minimized }.GetNewClosure())
         $hwidWindow.Add_PreviewMouseLeftButtonDown({
             param($sender,$eventArgs)
@@ -1524,7 +1546,7 @@ function Show-LessProjectHwidGate {
                 try { $eventArgs.Handled = $true; $hwidWindow.DragMove() } catch {}
             }
         }.GetNewClosure())
-        $hwidWindow.Add_Closed({ try { $hwidAuthTimer.Stop() } catch {}; try { Stop-LessProjectKeyAuthValidation } catch {} }.GetNewClosure())
+        $hwidWindow.Add_Closed({ try { $hwidAuthTimer.Stop() } catch {}; try { & $stopKeyAuthAction } catch {} }.GetNewClosure())
         $hwidWindow.Add_ContentRendered({
             try {
                 [void]$hwidKeyBox.Focus()
@@ -2086,10 +2108,10 @@ Add-ClickFX $BtnSplashClose
 # The Launch button intentionally uses only its rounded template border.
 # No DropShadowEffect is applied, so there is no outer glow around the control.
 try { $BtnSplashStart.Effect = $null } catch {}
-$BtnSplashStart.Add_PreviewMouseLeftButtonDown({ Play-LaunchUiSound })
-$BtnRun.Add_PreviewMouseLeftButtonDown({ Play-ApplyStartSound })
+$BtnSplashStart.Add_PreviewMouseLeftButtonDown({ try { Play-LaunchUiSound } catch {} })
+$BtnRun.Add_PreviewMouseLeftButtonDown({ try { Play-ApplyStartSound } catch {} })
 $BtnSplashStart.Add_KeyDown({
-    if($args[1].Key -in @([System.Windows.Input.Key]::Enter,[System.Windows.Input.Key]::Space)){ Play-LaunchUiSound }
+    if($args[1].Key -in @([System.Windows.Input.Key]::Enter,[System.Windows.Input.Key]::Space)){ try { Play-LaunchUiSound } catch {} }
 })
 function Open-LessProjectDiscord {
     $discordUrl="https://discord.gg/JKcsjJ2Gm"
@@ -2099,7 +2121,9 @@ function Open-LessProjectDiscord {
         try { Start-Process -FilePath $discordUrl -ErrorAction SilentlyContinue | Out-Null } catch {}
     }
 }
-$BtnSplashStart.Add_Click({ Open-LessProjectDiscord; Start-SplashLoading })
+$openDiscordAction = (${function:Open-LessProjectDiscord}).GetNewClosure()
+$startSplashAction = (${function:Start-SplashLoading}).GetNewClosure()
+$BtnSplashStart.Add_Click({ try { & $openDiscordAction } catch {}; try { & $startSplashAction } catch { try { Add-Content -LiteralPath $Global:UiErrorLogPath -Value ("$(Get-Date -Format o) Splash start: $($_.Exception.ToString())") -Encoding UTF8 } catch {} } }.GetNewClosure())
 $BtnSplashClose.Add_Click({ $Global:SplashClosedByX = $true; $splashWindow.Close() })
 $splashWindow.Add_Closed({ try { Stop-EmbeddedGifBackground -ScopeName "Splash" } catch {} })
 $BtnSplashMinimize.Add_Click({ $splashWindow.WindowState = 'Minimized' })
@@ -20687,5 +20711,16 @@ $window.Add_ContentRendered({
     try { Initialize-OneClickToggleSounds } catch {}
     try { if($CurrentTask){ $CurrentTask.Text = "UI READY." }; if($FooterNoticeText){ $FooterNoticeText.Text = "READY" } } catch {}
 })
+# PS2EXE invokes WPF event handlers after this script's child scope has
+# returned. Export our dashed helper functions to the process-global function
+# scope so callbacks (Login, splash, category buttons and tweak actions) can
+# always resolve them in both the source runner and the compiled EXE.
+try {
+    foreach($fn in @(Get-ChildItem -Path Function:\ -ErrorAction SilentlyContinue)){
+        if($fn.Name -match '-' -and $fn.ScriptBlock){
+            Set-Item -Path ("Function:\global:" + $fn.Name) -Value $fn.ScriptBlock -Force -ErrorAction SilentlyContinue
+        }
+    }
+} catch {}
 # The initial list is rendered once from ContentRendered after layout is ready.
 $window.ShowDialog()|Out-Null

@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 <#
 .SYNOPSIS
     LESS PROJECT Low-Latency Profile
@@ -16626,7 +16626,10 @@ function Show-CategoryDetail {
         [void]$win32Grid.Children.Add($win32Text)
         $win32Text.Visibility='Collapsed'
         $win32Action=New-Object System.Windows.Controls.StackPanel
-        $win32Action.Width='Auto'
+        # StackPanel.Width is a Double; WPF's "Auto" is represented by NaN.
+        # Assigning the GridLength string "Auto" here throws during main-window
+        # construction and prevents the console from opening after the loader.
+        $win32Action.Width=[double]::NaN
         $win32Action.HorizontalAlignment='Stretch'
         $win32Action.Margin='0'
         $win32Recommended=New-Object System.Windows.Controls.TextBlock
@@ -16668,7 +16671,9 @@ function Show-CategoryDetail {
         $Global:Win32ProfileSelection='GAMING RECOMMENDED (0x2E)'
         $Global:Win32ProfileButtons=@()
         $win32List=New-Object System.Windows.Controls.Grid
-        $win32List.Width='Auto'
+        # Keep the generated profile grid stretchable without assigning the
+        # GridLength string "Auto" to a Double dependency property.
+        $win32List.Width=[double]::NaN
         $win32List.HorizontalAlignment='Stretch'
         $win32List.VerticalAlignment='Top'
         foreach($columnIndex in 0..4){

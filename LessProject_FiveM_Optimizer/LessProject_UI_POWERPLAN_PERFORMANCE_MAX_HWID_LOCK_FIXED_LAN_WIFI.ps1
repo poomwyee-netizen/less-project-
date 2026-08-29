@@ -1168,16 +1168,24 @@ $Global:KeyAuthConfig = [ordered]@{
 }
 $Global:KeyAuthSessionId = $null
 $Global:KeyAuthUser = $null
-$Global:KeyAuthValidationJob = $null
+$Global:KeyAuthValidationPowerShell = $null
+$Global:KeyAuthValidationRunspace = $null
+$Global:KeyAuthValidationAsync = $null
+$Global:KeyAuthValidationStartedAt = $null
 
 function Stop-LessProjectKeyAuthValidation {
     try {
-        if($Global:KeyAuthValidationJob){
-            if($Global:KeyAuthValidationJob.State -eq 'Running'){ Stop-Job -Job $Global:KeyAuthValidationJob -ErrorAction SilentlyContinue }
-            Remove-Job -Job $Global:KeyAuthValidationJob -Force -ErrorAction SilentlyContinue
-        }
+        $ps = $Global:KeyAuthValidationPowerShell
+        $async = $Global:KeyAuthValidationAsync
+        if($ps -and $async -and -not $async.IsCompleted){ try { $ps.Stop() } catch {} }
+        if($ps){ try { $ps.Dispose() } catch {} }
+        $runspace = $Global:KeyAuthValidationRunspace
+        if($runspace){ try { $runspace.Close() } catch {}; try { $runspace.Dispose() } catch {} }
     } catch {}
-    $Global:KeyAuthValidationJob = $null
+    $Global:KeyAuthValidationPowerShell = $null
+    $Global:KeyAuthValidationRunspace = $null
+    $Global:KeyAuthValidationAsync = $null
+    $Global:KeyAuthValidationStartedAt = $null
 }
 
 function Start-LessProjectKeyAuthValidation {
@@ -1187,13 +1195,19 @@ function Start-LessProjectKeyAuthValidation {
     )
     Stop-LessProjectKeyAuthValidation
     $config = $Global:KeyAuthConfig
-    $Global:KeyAuthValidationJob = Start-Job -ScriptBlock {
+    $runspace = [runspacefactory]::CreateRunspace()
+    $runspace.ApartmentState = 'MTA'
+    $runspace.ThreadOptions = 'ReuseThread'
+    $runspace.Open()
+    $ps = [powershell]::Create()
+    $ps.Runspace = $runspace
+    [void]$ps.AddScript({
         param($Endpoint,$Name,$OwnerId,$Version,$LicenseKey,$HardwareId)
         $ErrorActionPreference = 'Stop'
         try { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 } catch {}
         function Invoke-KeyAuthRequest {
             param([hashtable]$Body)
-            Invoke-RestMethod -Uri $Endpoint -Method Post -Body $Body -ContentType 'application/x-www-form-urlencoded' -TimeoutSec 15 -Headers @{ 'User-Agent' = 'LESS-PROJECT/1.0' } -ErrorAction Stop
+            Invoke-RestMethod -Uri $Endpoint -Method Post -Body $Body -ContentType 'application/x-www-form-urlencoded' -TimeoutSec 12 -Headers @{ 'User-Agent' = 'LESS-PROJECT/1.0' } -ErrorAction Stop
         }
         try {
             $init = Invoke-KeyAuthRequest @{ type='init'; ver=$Version; name=$Name; ownerid=$OwnerId; hash='' }
@@ -1214,15 +1228,19 @@ function Start-LessProjectKeyAuthValidation {
         } catch {
             [pscustomobject]@{ Success=$false; Stage='network'; Message=('KeyAuth connection failed: ' + $_.Exception.Message) }
         }
-    } -ArgumentList @(
-        [string]$config.Endpoint,
-        [string]$config.Name,
-        [string]$config.OwnerId,
-        [string]$config.Version,
-        $LicenseKey.Trim(),
-        $HardwareId
-    )
-    return $Global:KeyAuthValidationJob
+    }).AddArgument([string]$config.Endpoint).AddArgument([string]$config.Name).AddArgument([string]$config.OwnerId).AddArgument([string]$config.Version).AddArgument($LicenseKey.Trim()).AddArgument($HardwareId)
+    try {
+        $async = $ps.BeginInvoke()
+        $Global:KeyAuthValidationPowerShell = $ps
+        $Global:KeyAuthValidationRunspace = $runspace
+        $Global:KeyAuthValidationAsync = $async
+        $Global:KeyAuthValidationStartedAt = [DateTime]::UtcNow
+        return $async
+    } catch {
+        try { $ps.Dispose() } catch {}
+        try { $runspace.Close(); $runspace.Dispose() } catch {}
+        throw
+    }
 }
 
 function Get-LessProjectHardwareId {
@@ -1411,26 +1429,41 @@ function Show-LessProjectHwidGate {
         $hwidAuthTimer.Interval = [TimeSpan]::FromMilliseconds(180)
         $hwidAuthTimer.Add_Tick({
             try {
-                $job = $Global:KeyAuthValidationJob
-                if(-not $job){ return }
-                if($job.State -in @('Completed','Failed','Stopped','Disconnected')){
-                    $result = @(Receive-Job -Job $job -ErrorAction SilentlyContinue | Select-Object -Last 1)
-                    Stop-LessProjectKeyAuthValidation
-                    $hwidAuthTimer.Stop()
-                    $hwidContinue.IsEnabled = $true
-                    if($result.Count -gt 0 -and [bool]$result[0].Success){
-                        $Global:KeyAuthSessionId = [string]$result[0].SessionId
-                        $Global:KeyAuthUser = [string]$result[0].User
-                        $hwidStatus.Text = "LOGIN SUCCESS — OPENING LESS PROJECT"
-                        $hwidStatus.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#D5FFD5")
-                        $Global:LessProjectHwidPassed = $true
-                        $hwidWindow.Close()
-                    } else {
-                        $message = if($result.Count -gt 0){ [string]$result[0].Message }else{ "No response from KeyAuth." }
-                        if([string]::IsNullOrWhiteSpace($message)){ $message = "License was rejected." }
-                        $hwidStatus.Text = "LOGIN FAILED — $message"
+                $async = $Global:KeyAuthValidationAsync
+                if(-not $async){ return }
+                if(-not $async.IsCompleted){
+                    $started = $Global:KeyAuthValidationStartedAt
+                    if($started -and (([DateTime]::UtcNow - $started).TotalSeconds -ge 25)){
+                        Stop-LessProjectKeyAuthValidation
+                        $hwidAuthTimer.Stop()
+                        $hwidContinue.IsEnabled = $true
+                        $hwidStatus.Text = "LOGIN FAILED — KEYAUTH REQUEST TIMED OUT"
                         $hwidStatus.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#FFB4B4")
                     }
+                    return
+                }
+                $result = @()
+                try {
+                    $worker = $Global:KeyAuthValidationPowerShell
+                    if($worker){ $result = @($worker.EndInvoke($async) | Select-Object -Last 1) }
+                } catch {
+                    $result = @([pscustomobject]@{ Success=$false; Message=('KeyAuth worker failed: ' + $_.Exception.Message) })
+                }
+                Stop-LessProjectKeyAuthValidation
+                $hwidAuthTimer.Stop()
+                $hwidContinue.IsEnabled = $true
+                if($result.Count -gt 0 -and [bool]$result[0].Success){
+                    $Global:KeyAuthSessionId = [string]$result[0].SessionId
+                    $Global:KeyAuthUser = [string]$result[0].User
+                    $hwidStatus.Text = "LOGIN SUCCESS — OPENING LESS PROJECT"
+                    $hwidStatus.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#D5FFD5")
+                    $Global:LessProjectHwidPassed = $true
+                    $hwidWindow.Close()
+                } else {
+                    $message = if($result.Count -gt 0){ [string]$result[0].Message }else{ "No response from KeyAuth." }
+                    if([string]::IsNullOrWhiteSpace($message)){ $message = "License was rejected." }
+                    $hwidStatus.Text = "LOGIN FAILED — $message"
+                    $hwidStatus.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#FFB4B4")
                 }
             } catch {
                 try { $hwidAuthTimer.Stop() } catch {}

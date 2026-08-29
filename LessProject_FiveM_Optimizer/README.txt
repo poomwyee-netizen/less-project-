@@ -3,7 +3,8 @@
 Run Start-LessProject.cmd or LessProject_FiveM_Optimizer.exe as Administrator.
 The EXE contains the compressed payload; the separate payload file is kept only for the PowerShell fallback launcher.
 The full editable source is LessProject_UI_POWERPLAN_PERFORMANCE_MAX_HWID_LOCK_FIXED_LAN_WIFI.ps1.
-The source comments are removed from the distributed payload. This is obfuscation, not encryption.
+The source comments are removed for distribution.
+This is obfuscation, not encryption; do not use it to hide unsafe changes.
 
 License access:
 - The sign-in gate uses KeyAuth API 1.3 with license + hardware ID validation.
@@ -19,4 +20,4 @@ Important:
 
 GitHub installer usage after uploading the release files:
   powershell -ExecutionPolicy Bypass -File Install-LessProject.ps1 -Repository owner/repository -Ref main
-For one-line install, use the commit-pinned CDN installer. It carries a verified runtime bundle and does not need to download individual files.
+For one-line install, host Install-LessProject.ps1 and run it with irm | iex after configuring the repository.

@@ -1299,7 +1299,7 @@ function New-HwidMovingMonochromeBackground {
         [System.Windows.Controls.Canvas]::SetTop($space,-20)
         [void]$Canvas.Children.Add($space)
 
-        for($i = 0; $i -lt [math]::Max(18,$Count); $i++){
+        for($i = 0; $i -lt [math]::Max(8,$Count); $i++){
             $dot = New-Object System.Windows.Shapes.Ellipse
             $size = 0.8 + ($rnd.NextDouble() * 1.8)
             $dot.Width = $size
@@ -1351,7 +1351,7 @@ function Show-LessProjectHwidGate {
     param([string]$HardwareId)
     if([string]::IsNullOrWhiteSpace($HardwareId)){ $HardwareId = Get-LessProjectHardwareId }
     $hwidXaml = @"
-<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Title="LESS PROJECT - SIGN IN" Width="400" Height="420" MinWidth="400" MinHeight="420" WindowStartupLocation="CenterScreen" WindowStyle="None" ResizeMode="NoResize" AllowsTransparency="True" Background="Transparent" FontFamily="Segoe UI" UseLayoutRounding="True" SnapsToDevicePixels="True" TextOptions.TextFormattingMode="Ideal" TextOptions.TextRenderingMode="ClearType">
+  <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Title="LESS PROJECT - SIGN IN" Width="400" Height="420" MinWidth="400" MinHeight="420" WindowStartupLocation="CenterScreen" WindowStyle="None" ResizeMode="NoResize" AllowsTransparency="True" Background="Transparent" FontFamily="Segoe UI" UseLayoutRounding="True" SnapsToDevicePixels="True" TextOptions.TextFormattingMode="Ideal" TextOptions.TextRenderingMode="ClearType" Focusable="True">
  <Window.Resources>
   <Style x:Key="HwidButton" TargetType="Button"><Setter Property="Background" Value="#111111"/><Setter Property="Foreground" Value="#F4F4F4"/><Setter Property="BorderBrush" Value="#666666"/><Setter Property="BorderThickness" Value="1"/><Setter Property="Height" Value="31"/><Setter Property="FontFamily" Value="Segoe UI"/><Setter Property="Cursor" Value="Hand"/><Setter Property="FontSize" Value="8.5"/><Setter Property="FontWeight" Value="SemiBold"/><Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button"><Border x:Name="HwidButtonBorder" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="8" Padding="10,0"><ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/></Border><ControlTemplate.Triggers><Trigger Property="IsMouseOver" Value="True"><Setter TargetName="HwidButtonBorder" Property="Background" Value="#262626"/><Setter TargetName="HwidButtonBorder" Property="BorderBrush" Value="#FFFFFF"/></Trigger><Trigger Property="IsPressed" Value="True"><Setter TargetName="HwidButtonBorder" Property="Opacity" Value="0.68"/></Trigger><Trigger Property="IsEnabled" Value="False"><Setter TargetName="HwidButtonBorder" Property="Opacity" Value="0.35"/></Trigger></ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter></Style>
   <Style x:Key="HwidAccentButton" TargetType="Button" BasedOn="{StaticResource HwidButton}"><Setter Property="Background" Value="#F1F1F1"/><Setter Property="BorderBrush" Value="#FFFFFF"/><Setter Property="Foreground" Value="#101010"/><Setter Property="FontSize" Value="10"/><Setter Property="FontWeight" Value="SemiBold"/><Setter Property="Height" Value="40"/><Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button"><Border x:Name="AccentBorder" CornerRadius="9" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1"><ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/></Border><ControlTemplate.Triggers><Trigger Property="IsMouseOver" Value="True"><Setter TargetName="AccentBorder" Property="Background" Value="#CFCFCF"/><Setter TargetName="AccentBorder" Property="BorderBrush" Value="#FFFFFF"/></Trigger><Trigger Property="IsPressed" Value="True"><Setter TargetName="AccentBorder" Property="Opacity" Value="0.68"/></Trigger><Trigger Property="IsEnabled" Value="False"><Setter TargetName="AccentBorder" Property="Opacity" Value="0.35"/></Trigger></ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter></Style>
@@ -1369,7 +1369,7 @@ function Show-LessProjectHwidGate {
      <TextBlock Text="HARDWARE ID" Foreground="#A6A6A6" FontSize="8" FontWeight="SemiBold" Margin="2,0,0,6"/>
      <Border Height="34" CornerRadius="11" Background="#0D0D0D" BorderBrush="#707070" BorderThickness="1" Padding="9,0"><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="23"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><Canvas Grid.Column="0" Width="20" Height="20" VerticalAlignment="Center"><Border Width="16" Height="10" Canvas.Left="1.5" Canvas.Top="1.5" BorderBrush="#FFFFFF" BorderThickness="1.8" CornerRadius="1.5"/><Line X1="10" Y1="12" X2="10" Y2="15.5" Stroke="#FFFFFF" StrokeThickness="1.8" StrokeStartLineCap="Round" StrokeEndLineCap="Round"/><Line X1="5.5" Y1="17" X2="14.5" Y2="17" Stroke="#FFFFFF" StrokeThickness="1.8" StrokeStartLineCap="Round" StrokeEndLineCap="Round"/><Ellipse Width="2" Height="2" Canvas.Left="13.5" Canvas.Top="5.5" Fill="#FFFFFF"/></Canvas><TextBox x:Name="HwidValueBox" Grid.Column="1" Text="" IsReadOnly="True" Background="Transparent" Foreground="#EEEEEE" BorderThickness="0" Padding="0" FontFamily="Consolas" FontSize="10.5" FontWeight="SemiBold" VerticalContentAlignment="Center" HorizontalScrollBarVisibility="Hidden"/></Grid></Border>
      <TextBlock Text="LICENSE KEY" Foreground="#A6A6A6" FontSize="8" FontWeight="SemiBold" Margin="2,18,0,6"/>
-     <Border Height="38" CornerRadius="9" Background="#0D0D0D" BorderBrush="#707070" BorderThickness="1" Padding="9,0"><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="23"/><ColumnDefinition Width="*"/><ColumnDefinition Width="20"/></Grid.ColumnDefinitions><Canvas Grid.Column="0" Width="14" Height="14" VerticalAlignment="Center"><Border Width="10" Height="8" Canvas.Left="2" Canvas.Top="5" BorderBrush="#AFAFAF" BorderThickness="1" CornerRadius="2"/><Path Data="M4,6 C4,2 10,2 10,6" Stroke="#D0D0D0" StrokeThickness="1" Fill="Transparent"/><Ellipse Width="2" Height="2" Canvas.Left="6" Canvas.Top="8" Fill="#D0D0D0"/></Canvas><PasswordBox x:Name="HwidKeyBox" Grid.Column="1" Background="Transparent" Foreground="#EEEEEE" BorderThickness="0" Padding="0" FontFamily="Consolas" FontSize="11" VerticalContentAlignment="Center"/><Canvas Grid.Column="2" Width="14" Height="14" VerticalAlignment="Center"><Ellipse Width="11" Height="7" Canvas.Left="1.5" Canvas.Top="3.5" Stroke="#AFAFAF" StrokeThickness="1"/><Ellipse Width="2.5" Height="2.5" Canvas.Left="5.75" Canvas.Top="5.75" Fill="#D0D0D0"/></Canvas></Grid></Border>
+     <Border Height="38" CornerRadius="9" Background="#0D0D0D" BorderBrush="#707070" BorderThickness="1" Padding="9,0"><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="23"/><ColumnDefinition Width="*"/><ColumnDefinition Width="20"/></Grid.ColumnDefinitions><Canvas Grid.Column="0" Width="14" Height="14" VerticalAlignment="Center"><Border Width="10" Height="8" Canvas.Left="2" Canvas.Top="5" BorderBrush="#AFAFAF" BorderThickness="1" CornerRadius="2"/><Path Data="M4,6 C4,2 10,2 10,6" Stroke="#D0D0D0" StrokeThickness="1" Fill="Transparent"/><Ellipse Width="2" Height="2" Canvas.Left="6" Canvas.Top="8" Fill="#D0D0D0"/></Canvas><PasswordBox x:Name="HwidKeyBox" Grid.Column="1" Background="Transparent" Foreground="#EEEEEE" BorderThickness="0" Padding="0" FontFamily="Consolas" FontSize="11" VerticalContentAlignment="Center" Focusable="True" IsTabStop="True"/><Canvas Grid.Column="2" Width="14" Height="14" VerticalAlignment="Center"><Ellipse Width="11" Height="7" Canvas.Left="1.5" Canvas.Top="3.5" Stroke="#AFAFAF" StrokeThickness="1"/><Ellipse Width="2.5" Height="2.5" Canvas.Left="5.75" Canvas.Top="5.75" Fill="#D0D0D0"/></Canvas></Grid></Border>
      <TextBlock x:Name="HwidStatus" Text="ENTER YOUR LICENSE KEY TO CONTINUE" Foreground="#888888" FontSize="7.5" TextWrapping="Wrap" Margin="2,12,2,0"/>
      <Button x:Name="HwidContinueButton" Content="LOG IN" Style="{StaticResource HwidAccentButton}" Margin="0,12,0,0"/>
      <TextBlock Text="Enter your license key to continue." Foreground="#777777" FontSize="7.5" HorizontalAlignment="Center" Margin="0,14,0,0"/>
@@ -1395,8 +1395,9 @@ function Show-LessProjectHwidGate {
         try {
             # Same compositor-side moving star treatment as the other UI screens,
             # kept monochrome and glow-free for the HWID card.
-            New-HwidMovingMonochromeBackground -Canvas $hwidBg -Width 400 -Height 420 -Count 32
-            Add-BackgroundParallax -TargetWindow $hwidWindow -Canvas $hwidBg -MaxOffset 5 -DurationX 18 -DurationY 14
+            # Keep the access dialog light: a few static dots are enough here and
+            # avoid tying up the UI thread with dozens of perpetual animations.
+            New-HwidMovingMonochromeBackground -Canvas $hwidBg -Width 400 -Height 420 -Count 8
         } catch {}
         $Global:LessProjectHwidPassed = $false
         $Global:LessProjectHwidCancelled = $false
@@ -1461,6 +1462,12 @@ function Show-LessProjectHwidGate {
                 $eventArgs.Handled = $true
             }
         }.GetNewClosure())
+        $hwidKeyBox.Add_PreviewMouseLeftButtonDown({
+            try {
+                [void]$hwidKeyBox.Focus()
+                [System.Windows.Input.Keyboard]::Focus($hwidKeyBox) | Out-Null
+            } catch {}
+        }.GetNewClosure())
         $hwidClose.Add_Click({ $Global:LessProjectHwidCancelled = $true; try { $hwidAuthTimer.Stop() } catch {}; Stop-LessProjectKeyAuthValidation; $hwidWindow.Close() }.GetNewClosure())
         $hwidMinimize.Add_Click({ $hwidWindow.WindowState = [System.Windows.WindowState]::Minimized }.GetNewClosure())
         $hwidWindow.Add_PreviewMouseLeftButtonDown({
@@ -1468,7 +1475,10 @@ function Show-LessProjectHwidGate {
             $source = $eventArgs.OriginalSource -as [System.Windows.DependencyObject]
             $interactive = $false
             while($source){
-                if($source -is [System.Windows.Controls.Primitives.ButtonBase] -or $source -is [System.Windows.Controls.TextBox]){ $interactive = $true; break }
+                if($source -is [System.Windows.Controls.Primitives.ButtonBase] -or
+                   $source -is [System.Windows.Controls.Primitives.TextBoxBase] -or
+                   $source -is [System.Windows.Controls.PasswordBox] -or
+                   $source -is [System.Windows.Controls.Primitives.Selector]){ $interactive = $true; break }
                 try { $source = [System.Windows.Media.VisualTreeHelper]::GetParent($source) } catch { $source = $null }
             }
             if(-not $interactive -and $hwidWindow.WindowState -ne [System.Windows.WindowState]::Maximized){
@@ -1476,6 +1486,12 @@ function Show-LessProjectHwidGate {
             }
         }.GetNewClosure())
         $hwidWindow.Add_Closed({ try { $hwidAuthTimer.Stop() } catch {}; Stop-LessProjectKeyAuthValidation }.GetNewClosure())
+        $hwidWindow.Add_ContentRendered({
+            try {
+                [void]$hwidKeyBox.Focus()
+                [System.Windows.Input.Keyboard]::Focus($hwidKeyBox) | Out-Null
+            } catch {}
+        }.GetNewClosure())
         $hwidWindow.ShowDialog() | Out-Null
         return ($Global:LessProjectHwidPassed -eq $true)
     } catch {
@@ -1750,10 +1766,9 @@ $SplashGifBackground = $splashWindow.FindName("SplashGifBackground")
 # Loading/Splash uses the supplied giphy.gif directly, animated frame-by-frame
 # via Start-EmbeddedGifBackground so the Loading screen isn't stuck on frame 0.
 try {
-    # Procedural monochrome Galaxy: no external GIF required.
+    # Keep the splash compositor cheap. Static glows are already in XAML; the
+    # former 120-particle aura/parallax animation caused noticeable startup lag.
     $SplashGifBackground.Visibility=[System.Windows.Visibility]::Collapsed
-    New-SplashAura -Canvas $SplashBgCanvas -Width 820 -Height 500 -CenterX 410 -CenterY 250 -ParticleCount 120 -Style $Global:GalaxyStyle
-    Add-BackgroundParallax -TargetWindow $splashWindow -Canvas $SplashBgCanvas -MaxOffset 18 -DurationX 18 -DurationY 14
     $Global:SplashGifLoaded = $false
 } catch {}
 $SplashTopBar         = $splashWindow.FindName("SplashTopBar")
@@ -1831,9 +1846,8 @@ $fadeIn.EasingFunction = New-Object System.Windows.Media.Animation.SineEase
 $fadeIn.EasingFunction.EasingMode = [System.Windows.Media.Animation.EasingMode]::EaseInOut
 $SplashRoot.BeginAnimation([System.Windows.UIElement]::OpacityProperty, $fadeIn)
 
-# Very slow background drift: the soft red light moves a few pixels over time,
-# adding depth without making the interface feel busy or affecting hit testing.
-Add-BackgroundParallax -TargetWindow $splashWindow -Canvas $SplashBgCanvas -MaxOffset 28 -DurationX 9.5 -DurationY 7.5
+# No continuous parallax on the splash: static glows keep the design while
+# allowing the loader to appear immediately on slower machines.
 
 # Give each ambient glow its own slow path and breathing opacity. The different
 # phases make the background feel layered instead of moving like one flat image.
@@ -1969,10 +1983,10 @@ function Start-SplashLoading {
     $Global:SplashLoadTimer = New-Object System.Windows.Threading.DispatcherTimer
     # Keep the loading screen visible long enough to read the status and feel the
     # hand-off, without introducing a long artificial wait.
-    # 2% per 45ms gives about 2.25 seconds with much smoother progress updates.
-    $Global:SplashLoadTimer.Interval = [TimeSpan]::FromMilliseconds(45)
+    # Four percent per 70ms gives a short, low-overhead hand-off (~1.75s).
+    $Global:SplashLoadTimer.Interval = [TimeSpan]::FromMilliseconds(70)
     $Global:SplashLoadTimer.Add_Tick({
-        $Global:SplashLoadPct += 2
+        $Global:SplashLoadPct += 4
         if ($Global:SplashLoadPct -ge 100) {
             $Global:SplashLoadPct = 100
         }

@@ -2,9 +2,13 @@
 
 Run Start-LessProject.cmd or LessProject_FiveM_Optimizer.exe as Administrator.
 The EXE contains the compressed payload; the separate payload file is kept only for the PowerShell fallback launcher.
-The source comments are removed for distribution.
-This is obfuscation, not encryption; do not use it to hide unsafe changes.
-The installer downloads the single release ZIP first, so normal installs do not make one request per file.
+The full editable source is LessProject_UI_POWERPLAN_PERFORMANCE_MAX_HWID_LOCK_FIXED_LAN_WIFI.ps1.
+The source comments are removed from the distributed payload. This is obfuscation, not encryption.
+
+License access:
+- The sign-in gate uses KeyAuth API 1.3 with license + hardware ID validation.
+- Application identifiers are public client values; no seller/API secret is stored in this file.
+- Create licenses in the KeyAuth dashboard for "Poomwyee's Application" before distributing them.
 
 Important:
 - Create a System Restore Point before applying aggressive settings.
@@ -13,10 +17,6 @@ Important:
 - Provisioned bloatware removal is optional and cannot be restored automatically.
 - A restart may be required for BCD, GPU scheduling, TCP or service changes.
 
-GitHub one-line install (verified release):
-  irm https://raw.githubusercontent.com/poomwyee-netizen/less-project-/main/LessProject_FiveM_Optimizer/Install-LessProject.ps1 | iex
-
-If raw.githubusercontent.com returns HTTP 429, use the GitHub API fallback below.
-It uses one API request to fetch the installer and the installer automatically
-falls back to the API for release files when the raw host is rate-limited:
-  $u='https://api.github.com/repos/poomwyee-netizen/less-project-/contents/LessProject_FiveM_Optimizer/Install-LessProject.ps1?ref=main'; $j=Invoke-RestMethod -Uri $u -Headers @{'User-Agent'='LESS-PROJECT-Installer';'Accept'='application/vnd.github+json'}; iex ([Text.Encoding]::UTF8.GetString([Convert]::FromBase64String(($j.content -replace '\s',''))))
+GitHub installer usage after uploading the release files:
+  powershell -ExecutionPolicy Bypass -File Install-LessProject.ps1 -Repository owner/repository -Ref main
+For one-line install, use the commit-pinned CDN installer. It carries a verified runtime bundle and does not need to download individual files.

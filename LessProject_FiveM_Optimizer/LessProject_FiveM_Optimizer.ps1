@@ -75,6 +75,15 @@ try {
     if(-not (Test-Path -LiteralPath $payloadPath)){
         $payloadPath = Join-Path $env:TEMP "LessProject_FiveM_Optimizer.payload"
     }
+    # The expected digest is embedded at build time.  This detects incomplete
+    # downloads and casual payload edits before any PowerShell code is parsed.
+    $expectedPayloadHash = "41F098CF6E92C24001F88071B9BD651E9671C8DF483073D4125A7F34957214CD"
+    if($expectedPayloadHash -match '^[A-Fa-f0-9]{64}$'){
+        $actualPayloadHash = (Get-FileHash -LiteralPath $payloadPath -Algorithm SHA256).Hash.ToUpperInvariant()
+        if($actualPayloadHash -ne $expectedPayloadHash.ToUpperInvariant()){
+            throw "LESS PROJECT payload integrity check failed."
+        }
+    }
     $encoded = [IO.File]::ReadAllText($payloadPath).Trim()
     $compressed = [Convert]::FromBase64String($encoded)
     $input = New-Object IO.MemoryStream(,$compressed)

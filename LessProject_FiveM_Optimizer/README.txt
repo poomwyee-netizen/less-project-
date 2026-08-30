@@ -1,9 +1,9 @@
 ﻿LESS PROJECT - FiveM Optimizer
 
-Run Start-LessProject.cmd or LessProject_FiveM_Optimizer.exe as Administrator.
-The EXE contains the compressed payload; the separate payload file is kept only for the PowerShell fallback launcher.
-The source comments are removed for distribution.
-This is obfuscation, not encryption; do not use it to hide unsafe changes.
+Run Start-LessProject.cmd or LessProject_FiveM_Optimizer.ps1 as Administrator.
+The PS1 loader is the default path: it verifies the payload digest, then expands the compressed payload in memory.
+The EXE remains available as an optional fallback; the source file is not shipped in the release bundle.
+Comments are removed and the runtime is compressed/base64 encoded for distribution. This slows casual inspection, but is not encryption.
 
 Important:
 - Create a System Restore Point before applying aggressive settings.
